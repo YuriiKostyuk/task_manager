@@ -1,10 +1,15 @@
 import os
 from datetime import timedelta, datetime
+
+from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from typing import Any, Dict, Annotated
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
+
+# Загружает переменные из .env_example
+load_dotenv()
 
 # Инициализация шифрования для паролей
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -14,7 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 # Секретный ключ для токенов и алгоритм шифрования
 SECRET_KEY = os.getenv("SECRET_KEY", 'your_default_secret_key')
-ALGORITHM = "HS256"
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: timedelta | None = None) -> str:

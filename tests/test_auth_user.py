@@ -131,6 +131,7 @@ async def test_read_current_user_with_token(client: AsyncClient, test_user: User
 
         Проверяет, что возвращается информация о текущем пользователе.
         """
+
     response = await client.get("/auth/read_current_user", headers={"Authorization": f"Bearer {access_token}"})
     data = response.json()
     assert "username" in data["User"]

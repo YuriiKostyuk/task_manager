@@ -17,7 +17,7 @@ alembic = "^1.14.0"
 aiosqlite = "^0.20.0"
 greenlet = "^3.1.1"
 python-jose = "^3.3.0"
-pydantic = {extras = ["email"], version = "^2.10.3"}
+pydantic = { extras = ["email"], version = "^2.10.3" }
 python-multipart = "^0.0.19"
 bcrypt = "^4.2.1"
 pytest = "^8.3.4"
@@ -32,4 +32,3 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-

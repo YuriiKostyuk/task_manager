@@ -19,6 +19,18 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 @router.get('/', response_model=list[ReadUser])
 async def all_users(db: Annotated[AsyncSession, Depends(get_db)]):
+    """
+        Получает список всех пользователей.
+
+        Args:
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+
+        Returns:
+            list[ReadUser]: Список всех пользователей.
+
+        Raises:
+            HTTPException: Если пользователи не найдены (404) или произошла внутренняя ошибка сервера (500).
+        """
     try:
         result = await db.scalars(select(User))
         users = result.all()
@@ -33,6 +45,19 @@ async def all_users(db: Annotated[AsyncSession, Depends(get_db)]):
 
 @router.get('/{user_id}', response_model=ReadUser)
 async def get_user_id(db: Annotated[AsyncSession, Depends(get_db)], user_id: int):
+    """
+        Получает информацию о пользователе по его ID.
+
+        Args:
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+            user_id (int): ID пользователя.
+
+        Returns:
+            ReadUser: Информация о пользователе.
+
+        Raises:
+            HTTPException: Если пользователь не найден (404).
+        """
     user = await db.scalar(select(User).where(User.id == user_id))
 
     if user is None:
@@ -43,6 +68,19 @@ async def get_user_id(db: Annotated[AsyncSession, Depends(get_db)], user_id: int
 
 @router.post('/', status_code=status.HTTP_201_CREATED, response_model=CreateUser)
 async def create_user(db: Annotated[AsyncSession, Depends(get_db)], user: CreateUser):
+    """
+        Создает нового пользователя.
+
+        Args:
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+            user (CreateUser): Данные для создания нового пользователя.
+
+        Returns:
+            CreateUser: Созданный пользователь.
+
+        Raises:
+            HTTPException: Если пользователь с таким email уже существует (400).
+        """
     hashed_password = bcrypt_context.hash(user.password)
     new_user = User(name=user.name, email=user.email, password=hashed_password)
 
@@ -59,12 +97,27 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], user: Create
 
     return new_user
 
+
 @router.put('/{user_id}', response_model=ReadUser)
 async def update_user(
         user_id: int,
         update_user: CreateUser,
         db: AsyncSession = Depends(get_db),
 ):
+    """
+        Обновляет информацию о пользователе по его ID.
+
+        Args:
+            user_id (int): ID пользователя, которого нужно обновить.
+            update_user (CreateUser): Новые данные для обновления пользователя.
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+
+        Returns:
+            ReadUser: Обновленная информация о пользователе.
+
+        Raises:
+            HTTPException: Если пользователь не найден (404) или пользователь с таким email уже существует (400).
+        """
     user = await  db.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
@@ -89,6 +142,19 @@ async def update_user(
 
 @router.delete('/{user_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(db: Annotated[AsyncSession, Depends(get_db)], user_id: int):
+    """
+        Удаляет пользователя по его ID.
+
+        Args:
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+            user_id (int): ID пользователя, которого нужно удалить.
+
+        Returns:
+            dict: Сообщение об успешном удалении пользователя.
+
+        Raises:
+            HTTPException: Если пользователь не найден (404).
+        """
     user = await db.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")

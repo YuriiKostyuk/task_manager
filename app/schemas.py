@@ -1,5 +1,3 @@
-from email.policy import default
-
 from pydantic import BaseModel, EmailStr, constr
 from typing import Optional, Literal
 
@@ -69,4 +67,4 @@ class UpdateTask(BaseModel):
         Атрибуты:
             status (str): Новый статус задачи.
         """
-    status: str
+    status: Literal["Новая", "В процессе", "Завершена"] = "Новая"

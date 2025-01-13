@@ -15,7 +15,22 @@ router = APIRouter(
     tags=["Авторизация"],
 )
 
+
 async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], user_name: str, password: str) -> User:
+    """
+        Аутентифицирует пользователя по имени и паролю.
+
+        Args:
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+            user_name (str): Имя пользователя.
+            password (str): Пароль пользователя.
+
+        Returns:
+            User: Аутентифицированный пользователь.
+
+        Raises:
+            HTTPException: Если пользователь не найден или пароль неверен (401).
+        """
     user = await db.scalar(select(User).where(User.name == user_name))
     if not user or not bcrypt_context.verify(password, user.password):
         raise HTTPException(
@@ -24,7 +39,20 @@ async def authenticate_user(db: Annotated[AsyncSession, Depends(get_db)], user_n
         )
     return user
 
+
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    """
+        Получает текущего пользователя на основе JWT-токена.
+
+        Args:
+            token (str): JWT-токен, полученный из заголовка Authorization.
+
+        Returns:
+            dict: Информация о пользователе, включая имя и ID.
+
+        Raises:
+            HTTPException: Если токен недействителен, истёк или отсутствует (401, 400, 403).
+        """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         name: str = payload.get('sub')
@@ -60,6 +88,17 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
 
 
 async def create_access_token(name: str, user_id: int, expires_delta: timedelta):
+    """
+        Создает JWT-токен доступа.
+
+        Args:
+            name (str): Имя пользователя.
+            user_id (int): ID пользователя.
+            expires_delta (timedelta): Время жизни токена.
+
+        Returns:
+            str: JWT-токен доступа.
+        """
     encode = {'sub': name, 'id': user_id}
     expires = datetime.now() + expires_delta
     encode.update({'exp': expires})
@@ -68,12 +107,34 @@ async def create_access_token(name: str, user_id: int, expires_delta: timedelta)
 
 @router.get('/read_current_user')
 async def read_current_user(user: dict = Depends(get_current_user)):
+    """
+        Возвращает информацию о текущем аутентифицированном пользователе.
+
+        Args:
+            user (dict): Информация о пользователе, полученная из JWT-токена.
+
+        Returns:
+            dict: Информация о текущем пользователе.
+        """
     return {"User": user}
 
 
 @router.post('/token')
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    """
+        Аутентифицирует пользователя и возвращает JWT-токен доступа.
+
+        Args:
+            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+            form_data (OAuth2PasswordRequestForm): Данные формы, содержащие имя пользователя и пароль.
+
+        Returns:
+            dict: JWT-токен доступа и тип токена.
+
+        Raises:
+            HTTPException: Если аутентификация не удалась (401).
+        """
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
