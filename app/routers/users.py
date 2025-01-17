@@ -1,9 +1,10 @@
+import re
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import bcrypt_context
-from app.database.db_session import get_db
+from app.database.db import get_db
 from typing import Annotated
 from app.models.users import User
 from sqlalchemy import select
@@ -15,6 +16,34 @@ router = APIRouter(
     tags=["Пользователи"],
 )
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+
+def is_password_strong(password: str) -> bool:
+    """
+    Проверяет, соответствует ли пароль требованиям сложности.
+
+    Args:
+        password (str): Пароль для проверки.
+
+    Returns:
+        bool: True, если пароль соответствует требованиям, иначе False.
+    """
+    if len(password) < 8:
+        return False
+
+    if not re.search(r"[A-Z]", password):
+        return False
+
+    if not re.search(r"[a-z]", password):
+        return False
+
+    if not re.search(r"\d", password):
+        return False
+
+    if not re.search(r"[!@#$%^&*()_+{}\[\]:;<>,.?/~`]", password):
+        return False
+
+    return True
 
 
 @router.get('/', response_model=list[ReadUser])
@@ -81,6 +110,13 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], user: Create
         Raises:
             HTTPException: Если пользователь с таким email уже существует (400).
         """
+
+    if not is_password_strong(user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пароль не соответствует требованиям"
+        )
+
     hashed_password = bcrypt_context.hash(user.password)
     new_user = User(name=user.name, email=user.email, password=hashed_password)
 
@@ -122,6 +158,12 @@ async def update_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
+    if update_user.password and not is_password_strong(update_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пароль не соответствует требованиям"
+        )
+
     if update_user.password:
         user.password = bcrypt_context.hash(update_user.password)
     user.name = update_user.name
@@ -134,7 +176,7 @@ async def update_user(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Пользователь с такой почтой уже сущетвует"
+            detail="Пользователь с такой почтой уже сущеcтвует"
         )
 
     return user

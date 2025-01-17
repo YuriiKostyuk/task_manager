@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy import select
 from app.models.tasks import Task
-from app.schemas import CreateTask, ReadTask, UpdateTask
-from app.database.db_session import get_db
+from app.schemas import CreateTask, ReadTask, UpdateTask, TaskStatus
+from app.database.db import get_db
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import get_current_user
@@ -20,33 +20,42 @@ async def create_task(
         user: dict = Depends(get_current_user),
 ):
     """
-        Создает новую задачу.
+    Создает новую задачу.
 
-        Args:
-            task (CreateTask): Данные для создания задачи.
-            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
-            user (dict): Информация о текущем пользователе, полученная из JWT-токена.
+    Args:
+        task (CreateTask): Данные для создания задачи.
+        db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+        user (dict): Информация о текущем пользователе, полученная из JWT-токена.
 
-        Returns:
-            Task: Созданная задача.
+    Returns:
+        Task: Созданная задача.
 
-        Raises:
-            HTTPException: Если статус задачи недопустим (400), задача с таким названием уже существует (400)
-                          или произошла ошибка при добавлении задачи в базу данных (500).
-        """
+    Raises:
+        HTTPException: Если задача с таким названием уже существует у пользователя (400)
+                      или произошла ошибка при добавлении задачи в базу данных (500).
+    """
     user_id = user["id"]
-    if task.status not in ["Новая", "В процессе", "Завершена"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Недопустимый статус задачи")
-    if (await db.execute(select(Task).where(Task.title == task.title))).scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Такая задача уже есть")
 
+    existing_task = await db.execute(
+        select(Task).where(Task.title == task.title, Task.user_id == user_id)
+    )
+    if existing_task.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Задача с таким названием уже существует"
+        )
+
+    # Создание задачи
     db_task = Task(**task.dict(), user_id=user_id)
     db.add(db_task)
     try:
         await db.commit()
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL, detail="Ошибка при добавлении задачи в базу данных")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL,
+            detail="Ошибка при добавлении задачи в базу данных"
+        )
     return db_task
 
 
@@ -56,15 +65,15 @@ async def read_task(
         user: dict = Depends(get_current_user),
 ):
     """
-        Возвращает список всех задач текущего пользователя.
+    Возвращает список всех задач текущего пользователя.
 
-        Args:
-            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
-            user (dict): Информация о текущем пользователе, полученная из JWT-токена.
+    Args:
+        db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+        user (dict): Информация о текущем пользователе, полученная из JWT-токена.
 
-        Returns:
-            List[ReadTask]: Список задач текущего пользователя.
-        """
+    Returns:
+        List[ReadTask]: Список задач текущего пользователя.
+    """
     user_id = user["id"]
     query = select(Task).where(Task.user_id == user_id)
     result = await db.execute(query)
@@ -78,20 +87,19 @@ async def get_task_id(
         user: dict[str, int] = Depends(get_current_user),
 ) -> ReadTask:
     """
-        Возвращает задачу по её ID, если она принадлежит текущему пользователю.
+    Возвращает задачу по её ID, если она принадлежит текущему пользователю.
 
-        Args:
-            task_id (int): ID задачи.
-            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
-            user (dict): Информация о текущем пользователе, полученная из JWT-токена.
+    Args:
+        task_id (int): ID задачи.
+        db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+        user (dict): Информация о текущем пользователе, полученная из JWT-токена.
 
-        Returns:
-            ReadTask: Задача с указанным ID.
+    Returns:
+        ReadTask: Задача с указанным ID.
 
-        Raises:
-            HTTPException: Если задача не найдена (404).
-        """
-
+    Raises:
+        HTTPException: Если задача не найдена (404).
+    """
     user_id = user["id"]
     query = select(Task).where(Task.id == task_id, Task.user_id == user_id)
     result = await db.execute(query)
@@ -111,20 +119,20 @@ async def update_task(
         user: dict = Depends(get_current_user),
 ):
     """
-        Обновляет задачу по её ID, если она принадлежит текущему пользователю.
+    Обновляет задачу по её ID, если она принадлежит текущему пользователю.
 
-        Args:
-            task_id (int): ID задачи.
-            task (UpdateTask): Новые данные для обновления задачи.
-            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
-            user (dict): Информация о текущем пользователе, полученная из JWT-токена.
+    Args:
+        task_id (int): ID задачи.
+        task (UpdateTask): Новые данные для обновления задачи.
+        db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+        user (dict): Информация о текущем пользователе, полученная из JWT-токена.
 
-        Returns:
-            UpdateTask: Обновленная задача.
+    Returns:
+        UpdateTask: Обновленная задача.
 
-        Raises:
-            HTTPException: Если задача не найдена (404) или произошла ошибка при обновлении задачи (500).
-        """
+    Raises:
+        HTTPException: Если задача не найдена (404) или произошла ошибка при обновлении задачи (500).
+    """
     user_id = user["id"]
     query = select(Task).where(Task.id == task_id, Task.user_id == user_id)
     result = await db.execute(query)
@@ -140,7 +148,10 @@ async def update_task(
         await db.commit()
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL, detail="Ошибка при обновлении задачи")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL,
+            detail="Ошибка при обновлении задачи"
+        )
 
     return db_task
 
@@ -152,19 +163,19 @@ async def delete_task(
         user: dict = Depends(get_current_user)
 ):
     """
-        Удаляет задачу по её ID, если она принадлежит текущему пользователю.
+    Удаляет задачу по её ID, если она принадлежит текущему пользователю.
 
-        Args:
-            task_id (int): ID задачи.
-            db (AsyncSession): Сессия базы данных, полученная через dependency injection.
-            user (dict): Информация о текущем пользователе, полученная из JWT-токена.
+    Args:
+        task_id (int): ID задачи.
+        db (AsyncSession): Сессия базы данных, полученная через dependency injection.
+        user (dict): Информация о текущем пользователе, полученная из JWT-токена.
 
-        Returns:
-            dict: Сообщение об успешном удалении задачи.
+    Returns:
+        dict: Сообщение об успешном удалении задачи.
 
-        Raises:
-            HTTPException: Если задача не найдена (404).
-        """
+    Raises:
+        HTTPException: Если задача не найдена (404).
+    """
     query = select(Task).where(Task.id == task_id, Task.user_id == user['id'])
     result = await db.execute(query)
     db_task = result.scalars().first()

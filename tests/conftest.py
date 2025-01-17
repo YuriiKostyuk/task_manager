@@ -5,10 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.database.db import Base
-from app.database.db_session import get_db
+from app.database.db import get_db
 import uuid
 
-# Конфигурация тестовой базы данных
 SQLITE_DATABASE_URL = "sqlite+aiosqlite:///./test_db.db"
 unique_email = f"user_{uuid.uuid4()}@example.com"
 

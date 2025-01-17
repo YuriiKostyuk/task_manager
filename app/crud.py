@@ -8,16 +8,12 @@ from typing import Any, Dict, Annotated
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 
-# Загружает переменные из .env_example
 load_dotenv()
 
-# Инициализация шифрования для паролей
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Настройка схемы OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
-# Секретный ключ для токенов и алгоритм шифрования
 SECRET_KEY = os.getenv("SECRET_KEY", 'your_default_secret_key')
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 

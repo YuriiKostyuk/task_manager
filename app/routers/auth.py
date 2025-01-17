@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from app.models.users import User
-from app.database.db_session import get_db
+from app.database.db import get_db
 from typing import Annotated
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
